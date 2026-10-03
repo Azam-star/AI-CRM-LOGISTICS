@@ -1,0 +1,20 @@
+{
+  "name": "freightdesk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FreightDesk: AI-driven CRM and logistics automation POC (requirement to payment)",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n srv,web -c cyan,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
+    "build": "npm run build -w server && npm run build -w web",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
+    "test": "npm test -w server",
+    "start": "npm start -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
