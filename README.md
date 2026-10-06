@@ -15,6 +15,18 @@ server/              Express + TypeScript API, in-memory store, simulation timer
 web/                 Vite + React + TypeScript client
 ```
 
+## Key features and project highlights
+
+- AI-assisted requirement intake for freight brokerage workflows, including pricing and trip lifecycle tracking.
+- Vendor matching based on route, service type, lane coverage, compliance, and commercial fit.
+- Weighted shortlist generation to surface the most relevant vendors before outreach begins.
+- AI-driven quote ingestion from voice and WhatsApp channels, with confidence scoring and anomaly flags.
+- Margin-aware sales pricing and customer confirmation workflow before committing to a booking.
+- L1 rate validation and vendor acceptance flow that supports automated trip creation.
+- End-to-end trip execution from dispatch to proof of delivery, invoice, receipt, and vendor payout.
+- Simulated real-world operational signals so the repo can be demoed without external telephony integrations.
+- Testable domain logic for matching, parsing, aggregation, and rate-card checks to support ongoing iteration.
+
 ## Run it
 
 ```
