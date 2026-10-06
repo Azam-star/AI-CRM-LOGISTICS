@@ -103,39 +103,22 @@ export function pruneSessions(db: Db): void {
 
 /* ---------------------------------------------------------- seed accounts */
 
-const SEED_USERS: { name: string; email: string; role: Role }[] = [
-  { name: 'Asha Menon', email: 'admin@freightdesk.local', role: 'admin' },
-  { name: 'Ravi Kumar', email: 'sales@freightdesk.local', role: 'sales' },
-  { name: 'Deepa Singh', email: 'ops@freightdesk.local', role: 'ops' },
-  { name: 'Joseph Mathew', email: 'finance@freightdesk.local', role: 'finance' },
+const SEED_USERS: { name: string; email: string; password: string; role: Role }[] = [
+  { name: 'Asha Menon', email: 'admin@freightdesk.local', password: 'admin123', role: 'admin' },
+  { name: 'Ravi Kumar', email: 'sales@freightdesk.local', password: 'sales123', role: 'sales' },
+  { name: 'Deepa Singh', email: 'ops@freightdesk.local', password: 'ops123', role: 'ops' },
+  { name: 'Joseph Mathew', email: 'finance@freightdesk.local', password: 'finance123', role: 'finance' },
 ];
 
-export interface SeedCredential {
-  email: string;
-  password: string;
-  role: Role;
-}
-
-/** Creates accounts with one-time passwords on first boot; returns null after initialization. */
-export function ensureSeedUsers(db: Db): SeedCredential[] | null {
+/** Creates the default accounts once, on the first boot against an empty database. */
+export function ensureSeedUsers(db: Db): void {
   const row = db.prepare(`SELECT COUNT(*) AS n FROM users`).get() as { n: number };
-  if (row.n > 0) return null;
-  const credentials: SeedCredential[] = [];
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    for (const user of SEED_USERS) {
-      const password = randomBytes(24).toString('base64url');
-      db.prepare(
-        `INSERT INTO users (name, email, password_hash, role, active, created_at) VALUES (?, ?, ?, ?, 1, ?)`,
-      ).run(user.name, user.email, hashPassword(password), user.role, new Date().toISOString());
-      credentials.push({ email: user.email, password, role: user.role });
-    }
-    db.exec('COMMIT');
-  } catch (err) {
-    db.exec('ROLLBACK');
-    throw err;
+  if (row.n > 0) return;
+  for (const user of SEED_USERS) {
+    db.prepare(
+      `INSERT INTO users (name, email, password_hash, role, active, created_at) VALUES (?, ?, ?, ?, 1, ?)`,
+    ).run(user.name, user.email, hashPassword(user.password), user.role, new Date().toISOString());
   }
-  return credentials;
 }
 
 /* ------------------------------------------------------------ login limits */

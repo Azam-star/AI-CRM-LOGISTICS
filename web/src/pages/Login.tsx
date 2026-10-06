@@ -81,27 +81,27 @@ export default function Login() {
         </form>
 
         <div className="auth-hint">
-          <div className="label">Initial accounts</div>
-          <p className="muted">
-            On first startup, the API prints one-time passwords for these accounts in its terminal. Save them then;
-            they are not shown again.
-          </p>
+          <div className="label">Demo accounts</div>
           <table>
             <tbody>
               <tr>
                 <td>admin@freightdesk.local</td>
+                <td>admin123</td>
                 <td>{ROLE_LABEL.admin}</td>
               </tr>
               <tr>
                 <td>sales@freightdesk.local</td>
+                <td>sales123</td>
                 <td>{ROLE_LABEL.sales}</td>
               </tr>
               <tr>
                 <td>ops@freightdesk.local</td>
+                <td>ops123</td>
                 <td>{ROLE_LABEL.ops}</td>
               </tr>
               <tr>
                 <td>finance@freightdesk.local</td>
+                <td>finance123</td>
                 <td>{ROLE_LABEL.finance}</td>
               </tr>
             </tbody>

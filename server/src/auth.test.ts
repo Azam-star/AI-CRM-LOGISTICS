@@ -147,18 +147,8 @@ test('attachUser resolves the session cookie onto the request', () => {
 
 test('seed users are created exactly once', () => {
   const db = tempDb();
-  const credentials = ensureSeedUsers(db);
-  assert.equal(credentials?.length, 4);
-  assert.ok(credentials);
-  for (const credential of credentials) {
-    const row = db.prepare(`SELECT password_hash FROM users WHERE email = ?`).get(credential.email) as
-      | { password_hash: string }
-      | undefined;
-    assert.ok(row);
-    assert.equal(verifyPassword(credential.password, row.password_hash), true);
-    assert.ok(credential.password.length >= 32);
-  }
-  assert.equal(ensureSeedUsers(db), null);
+  ensureSeedUsers(db);
+  ensureSeedUsers(db);
   const row = db.prepare(`SELECT COUNT(*) AS n FROM users`).get() as { n: number };
   assert.equal(row.n, 4);
   db.close();

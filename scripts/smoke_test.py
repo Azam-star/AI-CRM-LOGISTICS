@@ -23,9 +23,9 @@ BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:4000/api"
 FAILURES = []
 
 ADMIN_EMAIL = "admin@freightdesk.local"
-ADMIN_PASSWORD = os.environ.get("FREIGHTDESK_ADMIN_PASSWORD")
+ADMIN_PASSWORD = "admin123"
 SALES_EMAIL = "sales@freightdesk.local"
-SALES_PASSWORD = os.environ.get("FREIGHTDESK_SALES_PASSWORD")
+SALES_PASSWORD = "sales123"
 WEBHOOK_TOKEN = os.environ.get("WEBHOOK_TOKEN", "freightdesk-dev-token")
 
 
@@ -89,12 +89,6 @@ def wait_for(label, probe, timeout=35, interval=1.0):
 
 
 def main():
-    if not ADMIN_PASSWORD or not SALES_PASSWORD:
-        raise SystemExit(
-            "Set FREIGHTDESK_ADMIN_PASSWORD and FREIGHTDESK_SALES_PASSWORD "
-            "to the one-time passwords printed by the API on first startup."
-        )
-
     health = call("GET", "/health")
     check("api is up", health.get("ok") is True, health)
 

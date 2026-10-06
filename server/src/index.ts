@@ -41,13 +41,7 @@ export function createApp(ctx: ServerContext): express.Express {
 
 function boot(): void {
   const db = openDatabase(config.dbPath);
-  const initialCredentials = ensureSeedUsers(db);
-  if (initialCredentials) {
-    console.warn('Initial login passwords (shown once only; save them now):');
-    for (const credential of initialCredentials) {
-      console.warn(`${credential.email} (${credential.role}): ${credential.password}`);
-    }
-  }
+  ensureSeedUsers(db);
 
   const existing = hydrate(db);
   const store = existing ?? newStore();

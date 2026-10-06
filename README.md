@@ -22,17 +22,16 @@ snapshotted to SQLite after every write and loaded again on boot. Delete `data/`
 
 ## Accounts
 
-| Email | Role |
-|---|---|
-| admin@freightdesk.local | Administrator |
-| sales@freightdesk.local | Sales |
-| ops@freightdesk.local | Operations |
-| finance@freightdesk.local | Finance |
+| Email | Password | Role |
+|---|---|---|
+| admin@freightdesk.local | admin123 | Administrator |
+| sales@freightdesk.local | sales123 | Sales |
+| ops@freightdesk.local | ops123 | Operations |
+| finance@freightdesk.local | finance123 | Finance |
 
-On first boot, the API creates these accounts with randomly generated passwords and prints each password
-once in the API terminal. Save them before restarting; passwords are not shown again. Sessions are HttpOnly
-cookies with a configurable lifetime. Administrators can create users, reset passwords, deactivate accounts
-and read the audit trail on the **Users and audit** screen.
+Sessions are HttpOnly cookies with a configurable lifetime. Administrators can create users, reset
+passwords, deactivate accounts and read the audit trail on the **Users and audit** screen. Change the seed
+passwords before putting this anywhere shared.
 
 ## What is in the repo
 
@@ -109,8 +108,6 @@ npm test              # 45 unit tests: matching, parser, aggregation, rate card,
 python scripts/smoke_test.py   # 68 end-to-end checks against a running server
 ```
 
-The smoke test needs the first-boot passwords from the API terminal in
-`FREIGHTDESK_ADMIN_PASSWORD` and `FREIGHTDESK_SALES_PASSWORD`.
 
 ## Deployment
 
