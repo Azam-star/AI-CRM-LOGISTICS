@@ -75,6 +75,7 @@ export default function Landing() {
             <a href="#screens">Screens</a>
             <Link to="/privacy">Privacy</Link>
             <Link to="/terms">Terms</Link>
+            <Link to="/login">Sign in</Link>
             <Link to="/app" className="btn btn-primary btn-sm">
               Open the demo
             </Link>

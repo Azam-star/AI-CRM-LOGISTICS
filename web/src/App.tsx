@@ -1,7 +1,10 @@
-import { Link, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { api } from './api';
 import AppShell from './components/AppShell';
 import Dashboard from './pages/Dashboard';
 import Landing from './pages/Landing';
+import Login from './pages/Login';
 import NewRequirement from './pages/NewRequirement';
 import Payments from './pages/Payments';
 import Privacy from './pages/Privacy';
@@ -24,13 +27,41 @@ function NotFound() {
   );
 }
 
+function RequireAuth({ children }: { children: JSX.Element }) {
+  const location = useLocation();
+  const [status, setStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
+
+  useEffect(() => {
+    api
+      .get('/api/auth/me')
+      .then(() => setStatus('authenticated'))
+      .catch(() => setStatus('unauthenticated'));
+  }, []);
+
+  if (status === 'checking') {
+    return <div className="auth-loading">Checking your session…</div>;
+  }
+  if (status === 'unauthenticated') {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
-      <Route path="/app" element={<AppShell />}>
+      <Route
+        path="/app"
+        element={
+          <RequireAuth>
+            <AppShell />
+          </RequireAuth>
+        }
+      >
         <Route index element={<Dashboard />} />
         <Route path="requirements" element={<Requirements />} />
         <Route path="requirements/new" element={<NewRequirement />} />

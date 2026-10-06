@@ -1,4 +1,7 @@
 import { NavLink, Outlet, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../api';
 import { Icon, Logo, type IconName } from './ui';
 
 interface NavItem {
@@ -28,6 +31,19 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
 ];
 
 export default function AppShell() {
+  const navigate = useNavigate();
+  const [logoutError, setLogoutError] = useState('');
+
+  async function logout() {
+    setLogoutError('');
+    try {
+      await api.post('/api/auth/logout');
+      navigate('/login', { replace: true });
+    } catch (error) {
+      setLogoutError(error instanceof Error ? error.message : 'Could not sign out');
+    }
+  }
+
   return (
     <>
       <header className="topbar">
@@ -39,6 +55,9 @@ export default function AppShell() {
         <div className="topbar-right">
           <span>Sample data, refreshed on restart</span>
           <Link to="/">Product overview</Link>
+          <button className="btn btn-sm" onClick={() => void logout()}>
+            Sign out
+          </button>
           <Link to="/app/requirements/new" className="btn btn-primary btn-sm">
             <Icon name="plus" size={14} />
             New requirement
@@ -68,6 +87,7 @@ export default function AppShell() {
 
         <main className="main">
           <div className="content-width">
+            {logoutError && <div className="error-banner">{logoutError}</div>}
             <Outlet />
           </div>
         </main>
