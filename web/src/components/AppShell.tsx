@@ -1,4 +1,5 @@
-import { NavLink, Outlet, Link } from 'react-router-dom';
+import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
+import { ROLE_LABEL, useAuth } from '../auth';
 import { Icon, Logo, type IconName } from './ui';
 
 interface NavItem {
@@ -27,18 +28,41 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
   },
 ];
 
+const ADMIN_GROUP: { title: string; items: NavItem[] } = {
+  title: 'Administration',
+  items: [{ to: '/app/admin', label: 'Users and audit', icon: 'shield' }],
+};
+
 export default function AppShell() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const groups = user?.role === 'admin' ? [...GROUPS, ADMIN_GROUP] : GROUPS;
+
+  async function logout() {
+    await signOut();
+    navigate('/login', { replace: true });
+  }
+
   return (
     <>
       <header className="topbar">
         <Link to="/" className="brand">
           <Logo />
           FreightDesk
-          <small>CRM and logistics automation, POC build</small>
+          <small>CRM and logistics automation</small>
         </Link>
         <div className="topbar-right">
-          <span>Sample data, refreshed on restart</span>
+          {user ? (
+            <span className="user-chip">
+              {user.name}
+              <em>{ROLE_LABEL[user.role]}</em>
+            </span>
+          ) : null}
           <Link to="/">Product overview</Link>
+          <button type="button" className="btn btn-sm" onClick={() => void logout()}>
+            Sign out
+          </button>
           <Link to="/app/requirements/new" className="btn btn-primary btn-sm">
             <Icon name="plus" size={14} />
             New requirement
@@ -48,7 +72,7 @@ export default function AppShell() {
 
       <div className="shell">
         <nav className="sidebar">
-          {GROUPS.map((group) => (
+          {groups.map((group) => (
             <div className="nav-group" key={group.title}>
               <div className="nav-group-title">{group.title}</div>
               {group.items.map((item) => (

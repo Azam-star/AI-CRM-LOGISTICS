@@ -20,7 +20,8 @@ export type IconName =
   | 'message'
   | 'phone'
   | 'file'
-  | 'route';
+  | 'route'
+  | 'shield';
 
 const PATHS: Record<IconName, ReactNode> = {
   grid: (
@@ -101,6 +102,7 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M8.4 18H14a3.5 3.5 0 0 0 0-7h-4a3.5 3.5 0 0 1 0-7h5.6" />
     </>
   ),
+  shield: <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" />,
 };
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {

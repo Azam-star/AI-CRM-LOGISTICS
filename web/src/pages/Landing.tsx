@@ -86,7 +86,7 @@ export default function Landing() {
         <div className="hero">
           <h1>From customer requirement to confirmed vendor, without the sales agent making a single call.</h1>
           <p className="lead">
-            FreightDesk is a working proof of concept for freight brokerage in South India. It matches transporters
+            FreightDesk is a working MVP for freight brokerage in South India. It matches transporters
             against your vendor master, sends an AI voice call and a Tamil WhatsApp message asking for their rate,
             parses the replies, suggests the lowest rate to your sales agent, then carries the job through trip,
             invoice and payment in the same record.
@@ -123,9 +123,9 @@ export default function Landing() {
         </div>
 
         <section className="landing-section mt-3" id="objectives">
-          <h2>What the proof of concept demonstrates</h2>
+          <h2>What the product does</h2>
           <p className="section-note">
-            Six objectives from the POC scope, each one visible as a screen in this build.
+            Six objectives from the product scope, each one visible as a screen in this build.
           </p>
           <div className="obj-grid">
             {OBJECTIVES.map((o, i) => (
@@ -141,7 +141,7 @@ export default function Landing() {
         <section className="landing-section" id="workflow">
           <h2>The workflow this build runs end to end</h2>
           <p className="section-note">
-            The same eleven step flow from the POC document, collapsed to what a demo actually clicks through.
+            The same eleven step flow, collapsed to what a working day in operations actually clicks through.
           </p>
           <ol className="flow-list">
             {FLOW.map((f) => (
@@ -168,9 +168,10 @@ export default function Landing() {
         <section className="landing-section" id="simulated">
           <h2>What is simulated, stated plainly</h2>
           <div className="callout warning">
-            <strong>Telephony and WhatsApp are simulated inside the API process.</strong> No real transporter is
-            called or messaged, because that needs a Twilio or Exotel account and an approved WhatsApp Business
-            number. Attempt states, timers and message bodies are real code, just running against in-memory data.
+            <strong>Telephony and WhatsApp run in simulation mode until credentials are added.</strong> No real
+            transporter is called or messaged until a Twilio account and an approved WhatsApp Business number are
+            configured. The attempt states, timers and message bodies are the same code either way: adding
+            credentials switches sends to the live providers, and replies arrive on the webhook.
           </div>
           <div className="callout info">
             <strong>The quote parser is real, not scripted.</strong> Replies such as &quot;38500 podhum, toll extra&quot;,
@@ -180,7 +181,7 @@ export default function Landing() {
           </div>
           <div className="callout">
             <strong>All figures on the dashboard are computed from the running data.</strong> Vendor counts, response
-            rate, minutes to L1, receivables and margin are summed from the records in memory. Nothing is a marketing
+            rate, minutes to L1, receivables and margin are summed from the records in the database. Nothing is a marketing
             number.
           </div>
         </section>
@@ -188,11 +189,11 @@ export default function Landing() {
 
       <footer className="landing-footer">
         <div className="inner">
-          <span>FreightDesk, proof of concept v1.0. Sample data, reset on restart.</span>
+          <span>FreightDesk MVP v1.0. Data stored locally in SQLite.</span>
           <span>
             <Link to="/privacy">Privacy policy</Link>
             <Link to="/terms">Terms and conditions</Link>
-            <Link to="/app">Open the demo</Link>
+            <Link to="/app">Open the console</Link>
           </span>
         </div>
       </footer>

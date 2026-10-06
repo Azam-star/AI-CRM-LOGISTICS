@@ -22,13 +22,14 @@ export default function Privacy() {
 
       <div className="landing-wrap legal-copy">
         <h1>Privacy policy</h1>
-        <p className="muted">Applies to this proof of concept build. Last updated 3 October 2026.</p>
+        <p className="muted">Applies to this build. Last updated 6 October 2026.</p>
 
         <h2>What this build is</h2>
         <p>
-          FreightDesk is a proof of concept for requirement to payment automation in freight brokerage. It runs
-          locally with sample data held in the memory of one API process. Nothing in this build is connected to a
-          production CRM, a telephony provider or a WhatsApp Business account.
+          FreightDesk is a working build for requirement to payment automation in freight brokerage. It runs
+          locally: accounts, requirements, quotes, trips and payments are stored in a SQLite database file on the
+          machine hosting it. Nothing in this build is connected to a production CRM, a telephony provider or a
+          WhatsApp Business account.
         </p>
 
         <h2>Data it holds</h2>
@@ -46,39 +47,42 @@ export default function Privacy() {
           </li>
         </ul>
         <p>
-          No real person's personal data is processed. If you type your own details into a field, they stay in this
-          process and disappear when the server restarts.
+          No real person's personal data is processed. If you type your own details into a field, they stay in the
+          local database file on this machine.
         </p>
 
         <h2>Voice calls and messages</h2>
         <p>
-          The AI voice agent and the Tamil WhatsApp messages are simulated inside the API process. No call is placed,
-          no message is delivered, no audio is recorded, and no transcript leaves the machine. The message bodies and
-          reply texts you see are strings generated for the demo.
+          By default the AI voice agent and the Tamil WhatsApp messages are simulated inside the API process: no
+          call is placed and no message is delivered until provider credentials are configured. Simulated message
+          bodies and reply texts are generated locally and no transcript leaves the machine. With credentials
+          configured, outbound messages go to the provider and replies come back through the webhook endpoint.
         </p>
 
         <h2>Storage, retention and deletion</h2>
         <p>
-          The store is in memory. Restarting the API resets it to the seeded sample data, which deletes everything
-          created during your session. There is no database, no file persistence and no backup of session data.
+          Data lives in a SQLite file (data/freightdesk.db) next to the server code. Restarting the API keeps
+          everything: records load back from the file. There is no cloud copy and no automatic backup, so copy the
+          file if the data matters. Delete the file to reset to the seeded sample data.
         </p>
 
         <h2>Cookies, analytics and third parties</h2>
         <p>
-          The build sets no cookies, loads no analytics, no fonts and no scripts from third parties. The only network
-          calls the browser makes are to the API serving this page.
+          The build sets one cookie: the HttpOnly session cookie that keeps you signed in, which expires after the
+          configured session lifetime. It loads no analytics, no fonts and no scripts from third parties. The only
+          network calls the browser makes are to the API serving this page.
         </p>
 
         <h2>Your rights</h2>
         <p>
-          Because this is a local demo with no persistence, there is nothing to export or erase on request. If this
-          moves to production, the release will add access control, an audit trail for every call and message, and a
-          defined retention window for transcripts and call recordings.
+          Records live in the local database. An administrator can deactivate an account, reset a password or remove
+          the database file on request, and the audit trail shows who did what. A future release will add a defined
+          retention window for transcripts and call recordings.
         </p>
 
         <h2>Contact</h2>
         <p>
-          Questions about this policy or the proof of concept go to the project team through the channel this build
+          Questions about this policy or the build go to the project team through the channel this build
           was shared with. Material changes will be recorded with a new date at the top of this page.
         </p>
 

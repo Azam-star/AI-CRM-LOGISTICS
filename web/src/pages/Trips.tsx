@@ -156,7 +156,7 @@ export default function Trips() {
         </div>
       )}
 
-      <Panel title="What each status means" hint="Triggers and notifications from the POC document">
+      <Panel title="What each status means" hint="Triggers and notifications in this build">
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -184,7 +184,7 @@ export default function Trips() {
               </tr>
               <tr>
                 <td>In transit</td>
-                <td>Driver status update, manual or WhatsApp check-in during the POC</td>
+                <td>Driver status update, manual or WhatsApp check-in</td>
                 <td>Customer</td>
               </tr>
               <tr>

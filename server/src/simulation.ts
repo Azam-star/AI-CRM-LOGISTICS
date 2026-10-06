@@ -1,5 +1,7 @@
 import type { Channel, LockInAttempt, Order, Quote, Requirement, Trip, Vendor } from '../../shared/types';
 import { VEHICLE_TYPE_LABEL } from '../../shared/types';
+import { type InboundMessage, modeFor, phoneKey, placeVoiceCall, sendWhatsApp, type SendResult } from './channels';
+import { config } from './config';
 import { withNormalisation } from './domain/aggregation';
 import { flagReason, parseQuoteReply } from './domain/parsing';
 import { attemptsFor, getRequirement, type Store } from './store';
@@ -35,7 +37,11 @@ function mulberry32(seed: number): () => number {
 function schedule(reqId: string, ms: number, fn: () => void): void {
   const list = timers.get(reqId) ?? [];
   const handle = setTimeout(() => {
-    fn();
+    try {
+      fn();
+    } finally {
+      notify();
+    }
   }, ms);
   list.push(handle);
   timers.set(reqId, list);
@@ -44,6 +50,24 @@ function schedule(reqId: string, ms: number, fn: () => void): void {
 export function cancelTimers(reqId: string): void {
   for (const handle of timers.get(reqId) ?? []) clearTimeout(handle);
   timers.delete(reqId);
+}
+
+/**
+ * The server registers a listener here so every timer-driven mutation is
+ * snapshotted to SQLite as it happens, not only API-triggered writes.
+ */
+let mutationListener: (() => void) | null = null;
+
+export function setMutationListener(fn: () => void): void {
+  mutationListener = fn;
+}
+
+function notify(): void {
+  try {
+    mutationListener?.();
+  } catch (err) {
+    console.error('persist after timer failed:', err);
+  }
 }
 
 function round100(n: number): number {
@@ -132,10 +156,26 @@ export function startOutreach(store: Store, reqId: string): OutreachOutcome {
     const dialAt = 300 + index * 300;
     schedule(reqId, dialAt, () => {
       const attempt = store.attempts.find((a) => a.id === attemptId);
-      if (!attempt) return;
+      if (!attempt || attempt.status !== 'queued') return;
       attempt.status = 'in_progress';
       attempt.startedAt = new Date().toISOString();
     });
+
+    // Live mode sends real traffic; the reply then arrives on the webhook, or
+    // the attempt times out to no_response after the configured reply window.
+    if (modeFor(channel) === 'live') {
+      schedule(reqId, dialAt + config.replyTimeoutMs, () => {
+        const attempt = store.attempts.find((a) => a.id === attemptId);
+        if (attempt && (attempt.status === 'queued' || attempt.status === 'in_progress')) {
+          attempt.status = 'no_response';
+          attempt.repliedAt = new Date().toISOString();
+          attempt.reply = attempt.reply ?? 'No reply within the reply window.';
+          settleIfComplete(store, reqId, attemptId);
+        }
+      });
+      void deliverLive(store, reqId, attemptId, channel, vendor, outbound);
+      return;
+    }
 
     const responds = rng() < 0.72;
     const tollExtra = rng() < 0.3;
@@ -147,6 +187,8 @@ export function startOutreach(store: Store, reqId: string): OutreachOutcome {
     schedule(reqId, settleAt, () => {
       const attempt = store.attempts.find((a) => a.id === attemptId);
       if (!attempt) return;
+      // A webhook reply may have settled this attempt already; never overwrite it.
+      if (attempt.status === 'replied' || attempt.status === 'no_response') return;
       const now = new Date().toISOString();
 
       if (!responds) {
@@ -215,6 +257,96 @@ function settleIfComplete(store: Store, reqId: string, _attemptId: string): void
   if (attempts.length === 0) return;
   const allResolved = attempts.every((a) => a.status === 'replied' || a.status === 'no_response');
   if (allResolved) current.status = 'quoted';
+}
+
+/** Sends the outbound message through the real provider when one is configured. */
+async function deliverLive(
+  store: Store,
+  reqId: string,
+  attemptId: string,
+  channel: Channel,
+  vendor: Vendor,
+  outbound: string,
+): Promise<void> {
+  const result: SendResult =
+    channel === 'whatsapp'
+      ? await sendWhatsApp(vendor.whatsapp, outbound)
+      : await placeVoiceCall(vendor.phone, outbound);
+  const attempt = store.attempts.find((a) => a.id === attemptId);
+  if (attempt && !result.ok && (attempt.status === 'queued' || attempt.status === 'in_progress')) {
+    attempt.status = 'no_response';
+    attempt.repliedAt = new Date().toISOString();
+    attempt.reply = `Not delivered: ${result.detail}`;
+    settleIfComplete(store, reqId, attemptId);
+  }
+  notify();
+}
+
+export interface InboundOutcome {
+  ok: boolean;
+  detail: string;
+  requirementId?: string;
+  quoteId?: string;
+}
+
+/**
+ * Applies a reply that arrived on a webhook: matches it to the oldest open
+ * outreach attempt for that vendor number, parses it with the same quote parser
+ * the simulator uses, and settles the requirement when every attempt is done.
+ */
+export function applyInboundReply(store: Store, message: InboundMessage): InboundOutcome {
+  const key = phoneKey(message.phone);
+  if (!key) return { ok: false, detail: 'No usable phone number in the payload' };
+
+  const open = store.attempts.filter((a) => a.status === 'queued' || a.status === 'in_progress');
+  const attempt = open.find((a) => {
+    const vendor = store.vendors.find((v) => v.id === a.vendorId);
+    if (!vendor) return false;
+    return phoneKey(vendor.phone) === key || phoneKey(vendor.whatsapp) === key;
+  });
+  if (!attempt) return { ok: false, detail: `No open outreach attempt for ${message.phone}` };
+
+  const req = getRequirement(store, attempt.requirementId);
+  const now = new Date().toISOString();
+  attempt.status = 'replied';
+  attempt.reply = message.text;
+  attempt.repliedAt = now;
+
+  let quoteId: string | undefined;
+  if (req) {
+    const parsed = parseQuoteReply(message.text, req.rateCardRate);
+    const quote: Quote = withNormalisation({
+      id: `Q-${store.counters.quote + 1}`,
+      requirementId: req.id,
+      vendorId: attempt.vendorId,
+      vendorName: attempt.vendorName,
+      rate: parsed.rate,
+      tollIncluded: parsed.tollIncluded,
+      availableOnDate: parsed.availableOnDate,
+      conditions: parsed.conditions,
+      channel: attempt.channel,
+      rawText: message.text,
+      confidence: parsed.confidence,
+      receivedAt: now,
+      flagReason: null,
+      verified: false,
+      tollAllowance: 0,
+      normalisedRate: 0,
+    });
+    store.counters.quote += 1;
+    quote.flagReason = flagReason(quote.rate, quote.confidence, req.rateCardRate);
+    store.quotes.push(quote);
+    quoteId = quote.id;
+  }
+
+  settleIfComplete(store, attempt.requirementId, attempt.id);
+  notify();
+  return {
+    ok: true,
+    detail: quoteId ? `parsed ${quoteId} from ${attempt.vendorName}` : `reply recorded from ${attempt.vendorName}`,
+    requirementId: attempt.requirementId,
+    quoteId,
+  };
 }
 
 const DRIVERS = ['M. Kumar', 'S. Rajesh', 'P. Selvam', 'A. Dinesh', 'K. Anand', 'R. Vignesh', 'T. Murugan'];

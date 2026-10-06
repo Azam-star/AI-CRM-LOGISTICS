@@ -59,7 +59,7 @@ export default function Dashboard() {
         <div>
           <h1>Dashboard</h1>
           <div className="sub">
-            Every figure below is summed from the records in this API process. Requirements, quotes, trips and
+            Every figure below is summed from the records in the database. Requirements, quotes, trips and
             invoices are the same rows the other screens edit.
           </div>
         </div>

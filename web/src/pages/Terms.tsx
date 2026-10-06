@@ -22,18 +22,18 @@ export default function Terms() {
 
       <div className="landing-wrap legal-copy">
         <h1>Terms and conditions</h1>
-        <p className="muted">Applies to this proof of concept build. Last updated 3 October 2026.</p>
+        <p className="muted">Applies to this build. Last updated 6 October 2026.</p>
 
         <h2>1. Nature of the build</h2>
         <p>
-          FreightDesk is a proof of concept, version 1.0, provided for evaluation. It is not a production service,
-          it is not offered for sale, and it comes with no service level, support commitment or availability
-          guarantee. Sample data is illustrative and must not be treated as market rates.
+          FreightDesk is version 1.0 of a working build, provided for evaluation. It is not offered for sale, and
+          it comes with no service level, support commitment or availability guarantee. Vendor records and rate
+          card figures are sample data and must not be treated as market rates.
         </p>
 
         <h2>2. Acceptable use</h2>
         <p>
-          Use it to evaluate the workflow described in the POC document: intake, matching, outreach, quoting, lock-in,
+          Use it to evaluate the workflow: intake, matching, outreach, quoting, lock-in,
           trips and payments. Do not enter real customer or vendor personal data, and do not expose the server to the
           public internet in this state.
         </p>
@@ -47,7 +47,8 @@ export default function Terms() {
 
         <h2>4. Simulated channels</h2>
         <p>
-          Voice calls and WhatsApp messages in this build are simulated. A production rollout needs an approved
+          Voice calls and WhatsApp messages are simulated unless provider credentials are configured. A production
+          rollout needs an approved
           WhatsApp Business number, telephony consent and recording rules, and compliance with TRAI regulations on
           commercial communication and do not disturb requests, plus vendor consent captured at onboarding.
         </p>
@@ -60,7 +61,7 @@ export default function Terms() {
 
         <h2>6. Liability</h2>
         <p>
-          To the extent permitted by law, the authors of this proof of concept accept no liability for decisions
+          To the extent permitted by law, the authors of this build accept no liability for decisions
           taken on its output, for revenue lost while evaluating it, or for misuse of the sample data.
         </p>
 
@@ -73,7 +74,7 @@ export default function Terms() {
         <h2>8. Governing law</h2>
         <p>
           These terms are governed by the laws of India, with courts in Tamil Nadu having jurisdiction, matching the
-          operating region of the brokerage this proof of concept was written for.
+          operating region of the brokerage this product was written for.
         </p>
 
         <p className="mt-3">

@@ -72,8 +72,14 @@ export interface ListResponse<T> {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
     ...init,
   });
+  if (response.status === 401 && !path.startsWith('/api/auth/')) {
+    // The session expired or was revoked; send the user back to the login page.
+    window.location.assign('/login');
+    throw new Error('Sign in required');
+  }
   if (!response.ok) {
     let message = `Request failed (${response.status})`;
     try {

@@ -269,7 +269,7 @@ export default function NewRequirement() {
             )}
           </Panel>
 
-          <Panel title="What happens after saving" hint="The flow from the POC document">
+          <Panel title="What happens after saving" hint="The flow this build follows">
             <ol className="flow-list">
               <li>
                 <strong>Vendor matching:</strong>&nbsp;<span>hard filters, then the weighted score, top 8 shortlisted.</span>

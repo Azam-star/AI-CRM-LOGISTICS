@@ -158,12 +158,12 @@ export default function Payments() {
         )}
       </Panel>
 
-      <Panel title="Notes on billing during the POC" hint="Scope boundaries from the design document">
+      <Panel title="Notes on billing" hint="Scope boundaries from the design document">
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li className="small">Invoices are records only. GST e-invoicing and accounting integration are later phases.</li>
           <li className="small">Customer credit terms come from the customer master, 15 to 45 days in this sample data.</li>
           <li className="small">
-            Payment reminders would go out over WhatsApp in production; the POC records due dates and status only.
+            Payment reminders would go out over WhatsApp in production; this build records due dates and status only.
             Last invoice activity {rows.length > 0 ? formatDateTime(rows[rows.length - 1]?.issuedAt ?? new Date().toISOString()) : 'none yet'}.
           </li>
         </ul>

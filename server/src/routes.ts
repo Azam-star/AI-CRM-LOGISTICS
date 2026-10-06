@@ -1,12 +1,33 @@
 import { Router, type Request, type Response } from 'express';
 import type { Invoice, Order, Requirement, Trip, TripStatus } from '../../shared/types';
 import { CARGO_TYPES, TRIP_STATUS_ORDER, TRIP_STATUS_LABEL } from '../../shared/types';
+import { listAudit, recordAudit } from './audit';
+import {
+  ROLES,
+  clearCookie,
+  createSession,
+  hashPassword,
+  loginFailure,
+  loginLocked,
+  loginSuccess,
+  pruneSessions,
+  requireAuth,
+  requireRole,
+  revokeAllSessions,
+  revokeSession,
+  sessionCookie,
+  verifyPassword,
+  type Role,
+} from './auth';
+import { channelModes, parseInbound } from './channels';
+import { config } from './config';
+import { persist, tableCounts, type Db } from './db';
 import { summariseQuotes } from './domain/aggregation';
 import { matchVendors } from './domain/matching';
 import { lookupRate } from './domain/ratecard';
 import { computeMetrics, lockInProgress, outreachInProgress } from './metrics';
 import { applyRateCard } from './seed';
-import { startLockIn, startOutreach } from './simulation';
+import { applyInboundReply, startLockIn, startOutreach } from './simulation';
 import {
   attemptsFor,
   customerByName,
@@ -90,12 +111,129 @@ function listRow(store: Store, req: Requirement): Record<string, unknown> {
   };
 }
 
-export function createApiRouter(store: Store): Router {
+export interface ServerContext {
+  store: Store;
+  db: Db;
+}
+
+export function createApiRouter(ctx: ServerContext): Router {
+  const { store, db } = ctx;
   const router = Router();
+
+  const audit = (req: Request, action: string, entity?: string, entityId?: string, detail?: string): void => {
+    recordAudit(db, { user: req.user ?? null, action, entity, entityId, detail });
+  };
+
+  // Snapshot the working set to SQLite after every write response.
+  router.use((req, res, next) => {
+    if (req.method !== 'GET') {
+      res.on('finish', () => {
+        try {
+          persist(db, store);
+        } catch (err) {
+          console.error('persist failed:', err);
+        }
+      });
+    }
+    next();
+  });
 
   router.get('/health', (_req, res) => {
     res.json({ ok: true, service: 'freightdesk-api', vendors: store.vendors.length, rateCardRows: store.rateCard.length });
   });
+
+  /* --------------------------------------------------------- auth (public) */
+
+  router.post('/auth/login', (req, res) => {
+    const email = String(req.body?.email ?? '').trim().toLowerCase();
+    const password = String(req.body?.password ?? '');
+    const limitKey = `${req.ip ?? 'unknown'}|${email}`;
+    const lockedFor = loginLocked(limitKey);
+    if (lockedFor > 0) {
+      res.status(429).json({ error: `Too many failed attempts. Try again in ${Math.ceil(lockedFor / 60000)} minute(s).` });
+      return;
+    }
+    const row = db.prepare(`SELECT id, name, email, password_hash, role, active FROM users WHERE email = ?`).get(email) as
+      | { id: number; name: string; email: string; password_hash: string; role: Role; active: number }
+      | undefined;
+    if (!row || !verifyPassword(password, row.password_hash)) {
+      loginFailure(limitKey);
+      recordAudit(db, { user: null, action: 'auth.login_failed', detail: email });
+      res.status(401).json({ error: 'Email or password is incorrect' });
+      return;
+    }
+    if (row.active !== 1) {
+      res.status(401).json({ error: 'This account is deactivated. Ask an administrator to re-enable it.' });
+      return;
+    }
+    loginSuccess(limitKey);
+    pruneSessions(db);
+    const { token } = createSession(db, row.id, req.ip);
+    res.setHeader('Set-Cookie', sessionCookie(token));
+    const user = { id: row.id, name: row.name, email: row.email, role: row.role };
+    recordAudit(db, { user, action: 'auth.login' });
+    res.json({ user });
+  });
+
+  router.get('/auth/me', (req, res) => {
+    res.json({ user: req.user ?? null });
+  });
+
+  router.post('/auth/logout', (req, res) => {
+    if (req.sessionToken) revokeSession(db, req.sessionToken);
+    res.setHeader('Set-Cookie', clearCookie());
+    if (req.user) recordAudit(db, { user: req.user, action: 'auth.logout' });
+    res.json({ ok: true });
+  });
+
+  /* -------------------------------------------------- inbound channel hooks */
+
+  const webhookTokenOk = (req: Request): boolean => {
+    const provided = req.get('x-webhook-token') || String(req.query.token ?? '');
+    return provided.length > 0 && provided === config.webhookToken;
+  };
+
+  router.get('/webhooks/whatsapp', (req, res) => {
+    const mode = String(req.query['hub.mode'] ?? '');
+    const token = String(req.query['hub.verify_token'] ?? '');
+    const challenge = String(req.query['hub.challenge'] ?? '');
+    if (mode === 'subscribe' && token === config.webhookToken) {
+      res.type('text/plain').send(challenge);
+      return;
+    }
+    res.status(403).send('Verification failed');
+  });
+
+  const handleInbound = (req: Request, res: Response): void => {
+    if (!webhookTokenOk(req)) {
+      res.status(403).json({ error: 'Invalid webhook token' });
+      return;
+    }
+    const message = parseInbound(req.body);
+    if (!message) {
+      res.status(400).json({ error: 'Unrecognised payload shape' });
+      return;
+    }
+    const outcome = applyInboundReply(store, message);
+    if (!outcome.ok) {
+      res.status(404).json({ error: outcome.detail });
+      return;
+    }
+    recordAudit(db, {
+      user: null,
+      action: 'webhook.reply_received',
+      entity: 'requirement',
+      entityId: outcome.requirementId,
+      detail: outcome.detail,
+    });
+    res.json({ ok: true, requirementId: outcome.requirementId, quoteId: outcome.quoteId ?? null });
+  };
+
+  router.post('/webhooks/whatsapp', handleInbound);
+  router.post('/webhooks/inbound', handleInbound);
+
+  /* Everything else requires a signed-in user. */
+  router.use(requireAuth);
 
   router.get('/metrics', (_req, res) => {
     res.json(computeMetrics(store));
@@ -225,6 +363,7 @@ export function createApiRouter(store: Store): Router {
       };
       applyRateCard(store, requirement);
       store.requirements.push(requirement);
+      audit(req, 'requirement.create', 'requirement', requirement.id, `${origin} to ${destination}`);
       res.status(201).json(requirementDetail(store, requirement.id));
     }),
   );
@@ -241,6 +380,7 @@ export function createApiRouter(store: Store): Router {
       const limit = Math.min(20, Math.max(1, Number(req.body?.limit ?? 8) || 8));
       store.matches[id] = matchVendors(requirement, store.vendors, limit);
       requirement.status = 'shortlisted';
+      audit(req, 'requirement.match', 'requirement', id, `shortlist limit ${limit}`);
       res.json(requirementDetail(store, id));
     }),
   );
@@ -252,6 +392,7 @@ export function createApiRouter(store: Store): Router {
       const requirement = getRequirement(store, id);
       if (!requirement) return notFound(res, 'Requirement');
       const outcome = startOutreach(store, id);
+      audit(req, 'outreach.start', 'requirement', id, `${outcome.attemptCount} vendors contacted`);
       res.json({ ...requirementDetail(store, id), started: outcome.attemptCount });
     }),
   );
@@ -269,6 +410,7 @@ export function createApiRouter(store: Store): Router {
       const quote = store.quotes.find((q) => q.id === String(req.params.id));
       if (!quote) return notFound(res, 'Quote');
       quote.verified = true;
+      audit(req, 'quote.verify', 'quote', quote.id, `requirement ${quote.requirementId}`);
       const requirement = getRequirement(store, quote.requirementId);
       res.json(summariseQuotes(quote.requirementId, quotesFor(store, quote.requirementId), requirement?.marginPct ?? null));
     }),
@@ -290,6 +432,7 @@ export function createApiRouter(store: Store): Router {
       requirement.marginPct = marginPct;
       requirement.l1QuoteId = summary.l1.id;
       requirement.status = 'awaiting_customer';
+      audit(req, 'requirement.price', 'requirement', id, `margin ${marginPct}%, L1 ${summary.l1.id}`);
       res.json(requirementDetail(store, id));
     }),
   );
@@ -322,6 +465,7 @@ export function createApiRouter(store: Store): Router {
       store.orders.push(order);
       requirement.status = 'locking';
       startLockIn(store, order.id);
+      audit(req, 'order.create', 'order', order.id, `requirement ${id} at Rs. ${order.customerPrice}`);
       res.json(requirementDetail(store, id));
     }),
   );
@@ -357,6 +501,7 @@ export function createApiRouter(store: Store): Router {
       const note = String(req.body?.note ?? '').trim() || defaultAdvanceNote(next, trip);
       trip.status = next;
       trip.events.push({ status: next, at: new Date().toISOString(), note });
+      audit(req, 'trip.advance', 'trip', trip.id, next);
 
       if (next === 'billed') ensureInvoice(store, trip);
       if (next === 'paid') {
@@ -365,6 +510,7 @@ export function createApiRouter(store: Store): Router {
           invoice.status = 'paid';
           invoice.paidOn = new Date().toISOString();
           invoice.tripStatus = 'paid';
+          audit(req, 'payment.record', 'invoice', invoice.id, `Rs. ${invoice.amount} from the trip board`);
         }
       }
 
@@ -379,6 +525,7 @@ export function createApiRouter(store: Store): Router {
       if (!trip) return notFound(res, 'Trip');
       const file = String(req.body?.file ?? '').trim() || `POD_${trip.id}.pdf`;
       trip.podFile = file;
+      audit(req, 'trip.pod', 'trip', trip.id, file);
       res.json(trip);
     }),
   );
@@ -413,6 +560,7 @@ export function createApiRouter(store: Store): Router {
         trip.status = 'paid';
         trip.events.push({ status: 'paid', at: invoice.paidOn, note: 'Payment recorded against the invoice.' });
       }
+      audit(req, 'payment.record', 'invoice', invoice.id, `Rs. ${invoice.amount}`);
       res.json(invoice);
     }),
   );
@@ -425,9 +573,99 @@ export function createApiRouter(store: Store): Router {
       const status = String(req.body?.status ?? '');
       if (status !== 'approved' && status !== 'paid') throw new Error('Status must be approved or paid');
       invoice.vendorPayoutStatus = status;
+      audit(req, 'payout.update', 'invoice', invoice.id, `vendor payout ${status}`);
       res.json(invoice);
     }),
   );
+
+  /* --------------------------------------------------------------- admin */
+
+  router.get('/admin/users', requireRole('admin'), (_req, res) => {
+    const rows = db
+      .prepare(`SELECT id, name, email, role, active, created_at FROM users ORDER BY id`)
+      .all() as { id: number; name: string; email: string; role: Role; active: number; created_at: string }[];
+    res.json(
+      rows.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: u.active === 1, createdAt: u.created_at })),
+    );
+  });
+
+  router.post(
+    '/admin/users',
+    requireRole('admin'),
+    wrap((req, res) => {
+      const name = String(req.body?.name ?? '').trim();
+      const email = String(req.body?.email ?? '').trim().toLowerCase();
+      const password = String(req.body?.password ?? '');
+      const role = String(req.body?.role ?? '') as Role;
+      if (name.length < 2) throw new Error('Name must be at least 2 characters');
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('A valid email is required');
+      if (password.length < 6) throw new Error('Password must be at least 6 characters');
+      if (!ROLES.includes(role)) throw new Error('Unknown role');
+      const exists = db.prepare(`SELECT 1 FROM users WHERE email = ?`).get(email);
+      if (exists) throw new Error('That email is already registered');
+      db.prepare(`INSERT INTO users (name, email, password_hash, role, active, created_at) VALUES (?, ?, ?, ?, 1, ?)`).run(
+        name,
+        email,
+        hashPassword(password),
+        role,
+        new Date().toISOString(),
+      );
+      const created = db.prepare(`SELECT id FROM users WHERE email = ?`).get(email) as { id: number };
+      audit(req, 'user.create', 'user', String(created.id), `${name} (${role})`);
+      res.status(201).json({ id: created.id, name, email, role, active: true });
+    }),
+  );
+
+  router.post(
+    '/admin/users/:id/reset',
+    requireRole('admin'),
+    wrap((req, res) => {
+      const id = Number(req.params.id);
+      const password = String(req.body?.password ?? '');
+      if (password.length < 6) throw new Error('Password must be at least 6 characters');
+      const row = db.prepare(`SELECT id, name FROM users WHERE id = ?`).get(id) as { id: number; name: string } | undefined;
+      if (!row) return notFound(res, 'User');
+      db.prepare(`UPDATE users SET password_hash = ? WHERE id = ?`).run(hashPassword(password), id);
+      revokeAllSessions(db, id);
+      audit(req, 'user.reset_password', 'user', String(id), row.name);
+      res.json({ ok: true });
+    }),
+  );
+
+  router.post(
+    '/admin/users/:id/active',
+    requireRole('admin'),
+    wrap((req, res) => {
+      const id = Number(req.params.id);
+      const active = req.body?.active === true;
+      if (!active && req.user && req.user.id === id) throw new Error('You cannot deactivate your own account');
+      const row = db.prepare(`SELECT id, name FROM users WHERE id = ?`).get(id) as { id: number; name: string } | undefined;
+      if (!row) return notFound(res, 'User');
+      db.prepare(`UPDATE users SET active = ? WHERE id = ?`).run(active ? 1 : 0, id);
+      if (!active) revokeAllSessions(db, id);
+      audit(req, active ? 'user.activate' : 'user.deactivate', 'user', String(id), row.name);
+      res.json({ ok: true, active });
+    }),
+  );
+
+  router.get('/admin/audit', requireRole('admin'), (req, res) => {
+    const limit = Number(req.query.limit ?? 200) || 200;
+    res.json(listAudit(db, limit));
+  });
+
+  router.get('/system', (_req, res) => {
+    const modes = channelModes();
+    res.json({
+      version: '1.0.0',
+      node: process.version,
+      uptimeSec: Math.round(process.uptime()),
+      dbPath: config.dbPath,
+      sessionTtlDays: config.sessionTtlDays,
+      channels: modes,
+      webhookTokenSet: config.webhookToken.length > 0,
+      counts: tableCounts(db),
+    });
+  });
 
   return router;
 }
