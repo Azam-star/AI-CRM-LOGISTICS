@@ -22,14 +22,6 @@ npm install
 npm run dev          # API on :4000, client on :5173
 ```
 
-Before starting the API, configure these environment variables:
-
-- `ADMIN_EMAIL`: administrator sign-in email
-- `ADMIN_PASSWORD`: administrator password (at least 12 characters)
-- `AUTH_SECRET`: random signing secret (at least 32 characters; for example, generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
-
-On Render, add all three under the service's **Environment** settings, then redeploy. The sign-in page is at `/login`; access to the demo and its API requires a valid session. The session cookie is HTTP-only, expires after eight hours, and is marked Secure in production. Passwords and signing secrets are never printed in application logs.
-
 Production build and single process serving:
 
 ```

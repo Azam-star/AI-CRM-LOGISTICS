@@ -7,7 +7,6 @@ import { lookupRate } from './domain/ratecard';
 import { computeMetrics, lockInProgress, outreachInProgress } from './metrics';
 import { applyRateCard } from './seed';
 import { startLockIn, startOutreach } from './simulation';
-import type { RequestHandler } from 'express';
 import {
   attemptsFor,
   customerByName,
@@ -91,14 +90,12 @@ function listRow(store: Store, req: Requirement): Record<string, unknown> {
   };
 }
 
-export function createApiRouter(store: Store, auth: RequestHandler): Router {
+export function createApiRouter(store: Store): Router {
   const router = Router();
 
   router.get('/health', (_req, res) => {
     res.json({ ok: true, service: 'freightdesk-api', vendors: store.vendors.length, rateCardRows: store.rateCard.length });
   });
-
-  router.use(auth);
 
   router.get('/metrics', (_req, res) => {
     res.json(computeMetrics(store));
