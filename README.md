@@ -1,6 +1,5 @@
 <div align="center">
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:020617,50:172554,100:2563eb&height=230&section=header&text=FreightDesk&fontSize=52&fontColor=ffffff&animation=twinkling&fontAlignY=38&desc=AI-Driven%20CRM%20and%20Logistics%20Automation%20for%20Freight%20Brokerage&descAlignY=62&descSize=16&descColor=bfdbfe" width="100%"/>
-<br>
 # 🚛 FreightDesk
  
 ### Requirement to payment, automated end to end.
@@ -9,7 +8,6 @@ An MVP for AI-driven CRM and logistics automation in freight brokerage — vendo
  
 Built from the design document `AI_CRM_Logistics_POC.docx`.
  
-<br>
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-22%2B-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
@@ -85,14 +83,14 @@ shared/types.ts        Types shared by the API and the client
  
 server/src/
 ├── index.ts            Boot: open database, hydrate or seed, listen, persist on shutdown
-├── routes.ts            REST API: auth, requirements, quotes, trips, payments, admin, webhooks
-├── auth.ts               Password hashing (scrypt), sessions, role middleware
-├── db.ts                  SQLite layer: schema, hydrate, snapshot persist
-├── audit.ts               Append-only audit log
-├── channels.ts            Outbound adapters (WhatsApp Cloud API, Twilio), pure payload builders
-├── simulation.ts          Outreach and lock-in timelines, inbound reply application
-├── seed.ts                Sample master data and demo requirements
-└── domain/                Matching engine, quote parser, L1 aggregation, rate card (unit tested)
+├── routes.ts           REST API: auth, requirements, quotes, trips, payments, admin, webhooks
+├── auth.ts             Password hashing (scrypt), sessions, role middleware
+├── db.ts               SQLite layer: schema, hydrate, snapshot persist
+├── audit.ts            Append-only audit log
+├── channels.ts         Outbound adapters (WhatsApp Cloud API, Twilio), pure payload builders
+├── simulation.ts       Outreach and lock-in timelines, inbound reply application
+├── seed.ts             Sample master data and demo requirements
+└── domain/             Matching engine, quote parser, L1 aggregation, rate card (unit tested)
  
 web/src/                React client: landing, console screens, login, admin console
 scripts/smoke_test.py   End-to-end suite: auth, admin, webhooks, full business flow
@@ -103,6 +101,7 @@ scripts/smoke_test.py   End-to-end suite: auth, admin, webhooks, full business f
 ## ⚙️ How the Pieces Work
  
 ### 🎯 Matching
+ 
 Hard filters on fifteen vendor attributes, then a weighted score:
  
 | Factor | Weight |
@@ -115,26 +114,30 @@ Hard filters on fifteen vendor attributes, then a weighted score:
 Excluded vendors carry their exclusion reasons.
  
 ### 📨 Outreach
+ 
 Each shortlisted vendor gets an attempt on their preferred channel. In **simulation mode** (default), replies arrive on timers; in **live mode**, the message is actually sent and the reply arrives via webhook. Either way, the reply text goes through the same rules parser:
  
 ```text
 "38500 podhum, toll extra"   →  parsed rate + confidence score
 "ithu 41k"                   →  parsed rate + confidence score
 "Rs. 39,500"                 →  parsed rate + confidence score
-Tamil numerals                →  parsed rate + confidence score
+Tamil numerals               →  parsed rate + confidence score
 ```
  
 Replies under **0.80 confidence** or more than **30% off** the rate card reference are flagged and need sales-agent verification before reaching L1.
  
 ### 💵 Pricing
+ 
 L1, L2, average, and spread are computed over the usable quotes; customer price is L1 plus the agent's margin.
  
 > **Worked example** (matches the design doc exactly): L1 = ₹37,800 · Average = ₹39,760 · Spread = ₹4,200 · Customer price = ₹40,824 at 8% margin
  
 ### 🔒 Lock-in to Payment
+ 
 Top three vendors are offered the job → first acceptance wins (with vehicle and driver details) → the trip moves through **seven statuses** to paid → invoice raised at billing per the customer's credit terms → vendor payout tracked separately.
  
 ### 📝 Audit
+ 
 Every sign-in, outreach run, verification, price, order, trip change, payment, and user-management action is recorded with the acting user and visible to administrators.
  
 ---
@@ -144,18 +147,22 @@ Every sign-in, outreach run, verification, price, order, trip change, payment, a
 Outreach stays in simulation mode until credentials are present (see `.env.example`):
  
 **WhatsApp**
+ 
 ```env
 WHATSAPP_TOKEN=...
 WHATSAPP_PHONE_NUMBER_ID=...
 ```
+ 
 Outbound messages go to the Graph API. Inbound replies must be forwarded to `POST /api/webhooks/whatsapp` with the `x-webhook-token` header set to `WEBHOOK_TOKEN` (the GET handshake on the same path answers Meta's verify challenge).
  
 **Voice**
+ 
 ```env
 TWILIO_ACCOUNT_SID=...
 TWILIO_AUTH_TOKEN=...
 TWILIO_FROM=...
 ```
+ 
 Calls are placed through Twilio reading the requirement script. A Twilio-formatted reply (`From`/`Body`) posted to `POST /api/webhooks/inbound` is parsed into a quote.
  
 > The payload builders and inbound parser are unit tested; the calls themselves need real accounts and have not been exercised against live providers from this machine.
@@ -193,16 +200,15 @@ PORT=4000 DB_PATH=/var/lib/freightdesk/freightdesk.db WEBHOOK_TOKEN=... npm star
 - 🔐 Lock-in acceptance is simulated even in live mode — it needs a real vendor confirmation flow (reply keyword or operator action) before going live
 ---
  
+<div align="center">
 ## 👨‍💻 Author
  
-<div align="center">
-## Shaik Abdullah Azam
+### Shaik Abdullah Azam
  
 **B.Tech Artificial Intelligence Student**
  
 AI • Full-Stack Development • Automation
  
-<br>
 <a href="https://github.com/Azam-star">
 <img src="https://img.shields.io/badge/GitHub-Azam--star-181717?style=for-the-badge&logo=github&logoColor=white"/>
 </a>
@@ -213,16 +219,14 @@ AI • Full-Stack Development • Automation
  
 If you found this project interesting:
  
-⭐ Star the repository
-🍴 Fork it
-🐛 Open an issue
-💡 Suggest an improvement
- 
+- ⭐ Star the repository
+- 🍴 Fork it
+- 🐛 Open an issue
+- 💡 Suggest an improvement
 ---
  
 <div align="center">
 **From a freight requirement to a paid, delivered trip — automated.**
  
-<br>
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:2563eb,50:172554,100:020617&height=120&section=footer" width="100%"/>
 </div>
