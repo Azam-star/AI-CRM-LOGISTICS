@@ -1,6 +1,6 @@
 <div align="center">
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:020617,50:172554,100:2563eb&height=230&section=header&text=FreightDesk&fontSize=52&fontColor=ffffff&animation=twinkling&fontAlignY=38&desc=AI-Driven%20CRM%20and%20Logistics%20Automation%20for%20Freight%20Brokerage&descAlignY=62&descSize=16&descColor=bfdbfe" width="100%"/>
-# 🚛 FreightDesk
+ 🚛 FreightDesk
  
 ### Requirement to payment, automated end to end.
  
